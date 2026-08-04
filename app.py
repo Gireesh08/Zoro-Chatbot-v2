@@ -99,7 +99,7 @@ if user_input:
         temperature = 0.3
     )
 
-    reply = response.choice[0].message.content
+    reply = response.choices[0].message.content
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
     with st.chat_message("assistant"):
