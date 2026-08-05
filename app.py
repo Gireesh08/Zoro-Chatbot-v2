@@ -1,14 +1,16 @@
 import streamlit as st
 from groq import Groq
 
-st.title("🛍️ Zoro 2.0 — LLM-Powered E-commerce Assistant")
+st.title("🛍️ Zoro v2 — LLM-Powered E-commerce Assistant")
 st.write("Ask me about your order, returns, products, or anything else!")
 
-client = Groq(api_key = st.secrets["GROQ_API_KEY"])
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 system_prompt = """You are Zoro, a friendly and helpful customer support assistant for an e-commerce store.
 
 The store sells products in these categories: Books, Electronics, Clothing & Accessories, Household.
+
+SCOPE RESTRICTION: You ONLY help with questions related to this store — orders, products, returns, delivery, payments, and similar topics. If a customer asks something unrelated (like writing code, essays, general knowledge questions, or anything outside customer support), politely decline and redirect them back to store-related topics. Do NOT answer unrelated requests, even if you know the answer.
 
 IMPORTANT: You do NOT have access to specific product listings, titles, brands, or inventory — only the 4 categories above and the FAQs below. NEVER invent specific product names, sections (like "Staff Picks"), genres, or details that aren't explicitly given to you. If asked for specific recommendations, direct the customer to browse the relevant category page instead of inventing options.
 
@@ -73,20 +75,44 @@ A: Product availability is shown live on each product page as 'In Stock' or 'Out
 
 Q: Can I get a refund instead of a replacement?
 A: Yes, you can choose a refund instead of a replacement during the return process.
-
 """
 
+# Setting up conversation memory- this runs when the app starts
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "system", "content": system_prompt}
     ]
 
+# Clear chat button — resets history back to just the system prompt
+if st.button("🔄 Clear Conversation"):
+    st.session_state.messages = [
+        {"role": "system", "content": system_prompt}
+    ]
+    st.rerun()
+
+# Quick-suggestion buttons — clicking one sets quick_question, same as typing it
+st.write("Try asking:")
+col1, col2, col3 = st.columns(3)
+quick_question = None
+with col1:
+    if st.button("Return Policy"):
+        quick_question = "What is your return policy?"
+with col2:
+    if st.button("Track My Order"):
+        quick_question = "How can I track my order?"
+with col3:
+    if st.button("Browse Categories"):
+        quick_question = "What categories of products do you sell?"
+
+# Displaying all the past messages
 for message in st.session_state.messages:
     if message["role"] != "system":
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
-user_input = st.chat_input("Ask Zoro anything about our store.....")
+# Getting a new input — either typed, or from a quick-suggestion button click
+typed_input = st.chat_input("Ask Zoro anything about our store...")
+user_input = quick_question if quick_question else typed_input
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -94,11 +120,10 @@ if user_input:
         st.write(user_input)
 
     response = client.chat.completions.create(
-        model = "llama-3.3-70b-versatile",
-        messages = st.session_state.messages,
-        temperature = 0.3
+        model="llama-3.3-70b-versatile",
+        messages=st.session_state.messages,
+        temperature=0.3
     )
-
     reply = response.choices[0].message.content
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
